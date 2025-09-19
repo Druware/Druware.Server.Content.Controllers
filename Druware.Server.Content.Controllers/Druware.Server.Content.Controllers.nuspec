@@ -1,0 +1,29 @@
+<package >
+    <metadata>
+        <id>$id$</id>
+        <version>1.1.2</version>
+        <title>Druware.Server.Content.Controllers</title>
+        <authors>dru@druware.com</authors>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <license type="file">LICENSE.txt</license>
+        <readme>README.md</readme>
+        <!-- <icon>icon.png</icon> -->
+        <projectUrl>https://github.com/Druware/Druware.Server.Content.Controllers</projectUrl>
+        <description>
+            These are the generic controllers for the Druware Server Content 
+            class library that a simple base for a basic CMS.
+        </description>
+        <releaseNotes>
+            Reworked the project for clarity and ease of publishing. 
+            Added documentation.
+        </releaseNotes>
+        <copyright>Copyright 2019-2025 by:
+            Andy 'Dru' Satori @ Druware Software Designs.
+            All Rights Reserved</copyright>
+        <tags>.net8 webapi</tags>
+    </metadata>
+    <files>
+        <file src=".\LICENSE.txt" target="" />
+        <file src=".\README.md" target="" />
+    </files>
+</package>
