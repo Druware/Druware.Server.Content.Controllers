@@ -18,11 +18,14 @@
  *    All Rights Reserved
  */
 
-using System;
-using AutoMapper;
+/* History
+ * 2025-11-21 - Dru - Code cleanup, added support for Header and Icon Images
+ *                    and fixed a bug in update with duplicate permalinks
+ *                    released v1.1.4
+ */
+
+
 using Druware.Extensions;
-using Druware.Server;
-using Druware.Server.Content;
 using Druware.Server.Entities;
 using RESTfulFoundation.Server;
 using Microsoft.AspNetCore.Identity;
@@ -30,7 +33,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
-using System.Data;
 using Druware.Server.Content.Entities;
 
 // TODO: Add a search/query function
@@ -46,37 +48,31 @@ namespace Druware.Server.Content.Controllers
     [Route("[controller]")]
     public class NewsController : CustomController
     {
-        private readonly IMapper _mapper;
-        private readonly AppSettings _settings;
         private readonly ContentContext _context;
 
         /// <summary>
-        /// Constructor, handles the passed in elements and passes them to the
+        /// Constructor handles the passed in elements and passes them to the
         /// base CustomController before moving forward.
         /// </summary>
         /// <param name="configuration"></param>
-        /// <param name="mapper"></param>
         /// <param name="userManager"></param>
         /// <param name="signInManager"></param>
         /// <param name="context"></param>
         /// <param name="serverContext"></param>
         public NewsController(
             IConfiguration configuration,
-            IMapper mapper,
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             ContentContext context,
-            Druware.Server.ServerContext serverContext)
+            ServerContext serverContext)
             : base(configuration, userManager, signInManager, serverContext)
         {
-            _settings = new AppSettings(Configuration);
-            _mapper = mapper;
             _context = context;
         }
 
         /// <summary>
         /// Get a list of the articles, in descending modified date order,
-        /// limisted to the paramters passed on the QueryString
+        /// limited to the paramters passed on the QueryString
         /// </summary>
         /// <param name="page">Which 0 based page to fetch</param>
         /// <param name="count">Limit the items per page</param>
@@ -93,11 +89,12 @@ namespace Druware.Server.Content.Controllers
             var list = _context.News?
                 .OrderByDescending(a => a.Modified)
                 .Include("ArticleTags.Tag")
+                .Include("HeaderImage")
                 .TagWithSource("Getting articles")
                 .Skip(page * count)
                 .Take(count)
                 .ToList();
-            ListResult result = ListResult.Ok(list!, total, page, count);
+            var result = ListResult.Ok(list!, total, page, count);
             return Ok(result);
         }
 
@@ -112,7 +109,7 @@ namespace Druware.Server.Content.Controllers
             // Everyone has access to this method, but we still want to log it
             await LogRequest();
 
-            Article? article = Article.ByPermalinkOrId(_context, value);
+            var article = Article.ByPermalinkOrId(_context, value);
             return (article != null) ? Ok(article) : BadRequest("Not Found");
         }
 
@@ -136,7 +133,7 @@ namespace Druware.Server.Content.Controllers
                        .ToList();
                 var message = "Invalid Model Recieved";
                 foreach (var error in errors)
-                    message += String.Format("\n\t{0}", error);
+                    message += $"\n\t{error}";
                 return Ok(Result.Error(message));
             }
 
@@ -145,22 +142,16 @@ namespace Druware.Server.Content.Controllers
 
             // validate the permalink, a duplicate WILL fail the save
 
-            if (model.Permalink == null)
-            {
-                // convert spaces to _
-                // strip puncutation
-                // urlencode the result
-                model.Permalink = model.Title!
-                    .Replace(" ", "_")
-                    .Replace("!", "")
-                    .Replace(",", "")
-                    .Replace("\"", "")
-                    .Replace("?", "")
-                    .Replace("=", "")
-                    .EncodeUrl();
-            }
+            model.Permalink ??= model.Title
+                .Replace(" ", "_")
+                .Replace("!", "")
+                .Replace(",", "")
+                .Replace("\"", "")
+                .Replace("?", "")
+                .Replace("=", "")
+                .EncodeUrl();
 
-            if (!Article.IsPermalinkValid(_context, model.Permalink!))
+            if (!Article.IsPermalinkValid(_context, model.Permalink))
                 return Ok(Result.Error("Permalink cannot duplicate an existing link"));
 
             // update the model with some relevant elements.
@@ -168,7 +159,8 @@ namespace Druware.Server.Content.Controllers
             // authorId & byLine
             if (model.AuthorId == null)
             {
-                User user = await UserManager.GetUserAsync(HttpContext.User);
+                var user = await UserManager.GetUserAsync(HttpContext.User);
+                if (user == null) return BadRequest("No User Found");
                 model.AuthorId = new Guid(user.Id);
                 model.ByLine = user.LastName + ", " + user.FirstName;
             }
@@ -180,9 +172,11 @@ namespace Druware.Server.Content.Controllers
             if (model.Tags != null)
                 foreach (string t in model.Tags)
                 { 
-                    ArticleTag at = new();
-                    at.Article = model;
-                    Tag tag = Tag.ByNameOrId(ServerContext, t);
+                    ArticleTag at = new()
+                    {
+                        Article = model
+                    };
+                    var tag = Tag.ByNameOrId(ServerContext, t);
                     if (tag.TagId == null)
                         at.Tag = tag;
                     else
@@ -221,7 +215,7 @@ namespace Druware.Server.Content.Controllers
                        .ToList();
                 var message = "Invalid Model Recieved";
                 foreach (var error in errors)
-                    message += String.Format("\n\t{0}", error);
+                    message += $"\n\t{error}";
                 return Ok(Result.Error(message));
             }
 
@@ -232,23 +226,24 @@ namespace Druware.Server.Content.Controllers
 
             // validate the permalink, a duplicate WILL fail the save
 
-            if (model.Permalink == null)
-            {
-                // convert spaces to _
-                // strip puncutation
-                // urlencode the result
-                model.Permalink = model.Title!
-                    .Replace(" ", "_")
-                    .Replace("!", "")
-                    .Replace(",", "")
-                    .Replace("\"", "")
-                    .Replace("?", "")
-                    .Replace("=", "")
-                    .EncodeUrl();
-            }
+            model.Permalink ??= model.Title
+                .Replace(" ", "_")
+                .Replace("!", "")
+                .Replace(",", "")
+                .Replace("\"", "")
+                .Replace("?", "")
+                .Replace("=", "")
+                .EncodeUrl();
 
-            if (!Article.IsPermalinkValid(_context, model.Permalink!, model.ArticleId))
-                return Ok(Result.Error("Permalink cannot duplicate an existing link"));
+            // if the existing link is the same as the new, then skip this check
+            if (model.Permalink != article.Permalink)
+            {
+                if (!Article.IsPermalinkValid(_context, model.Permalink,
+                        model.ArticleId))
+                    return Ok(
+                        Result.Error(
+                            "Permalink cannot duplicate an existing link"));
+            }
 
             // set and write the changes
             // cannot use this because it maps the private values too.
@@ -261,14 +256,16 @@ namespace Druware.Server.Content.Controllers
             article.Expires = model.Expires;
             article.Permalink = model.Permalink;
 
-            if (article.ArticleTags != null) article.ArticleTags.Clear();
-            if (model.Tags != null && article.ArticleTags != null)
+            article.ArticleTags.Clear();
+            if (model.Tags != null)
             { 
-                foreach (string t in model.Tags)
+                foreach (var t in model.Tags)
                 {
-                    ArticleTag at = new();
-                    at.ArticleId = article.ArticleId;
-                    Tag tag = Tag.ByNameOrId(ServerContext, t);
+                    ArticleTag at = new()
+                    {
+                        ArticleId = article.ArticleId
+                    };
+                    var tag = Tag.ByNameOrId(ServerContext, t);
                     if (tag.TagId == null)
                         at.Tag = tag;
                     else
@@ -301,8 +298,8 @@ namespace Druware.Server.Content.Controllers
             Article? article = Article.ByPermalinkOrId(_context, value);
             if (article == null) return BadRequest("Not Found");
 
-            _context.News.Remove(article);
-            _context.SaveChanges();
+            _context.News?.Remove(article);
+            await _context.SaveChangesAsync();
 
             // Should rework the save to return a success of fail on the delete
             return Ok(Result.Ok("Delete Successful"));
