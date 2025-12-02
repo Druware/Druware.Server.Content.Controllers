@@ -226,18 +226,18 @@ namespace Druware.Server.Content.Controllers
 
             // validate the permalink, a duplicate WILL fail the save
 
-            model.Permalink ??= model.Title
-                .Replace(" ", "_")
-                .Replace("!", "")
-                .Replace(",", "")
-                .Replace("\"", "")
-                .Replace("?", "")
-                .Replace("=", "")
-                .EncodeUrl();
-
             // if the existing link is the same as the new, then skip this check
             if (model.Permalink != article.Permalink)
             {
+                model.Permalink ??= model.Title
+                    .Replace(" ", "_")
+                    .Replace("!", "")
+                    .Replace(",", "")
+                    .Replace("\"", "")
+                    .Replace("?", "")
+                    .Replace("=", "")
+                    .EncodeUrl();
+                
                 if (!Article.IsPermalinkValid(_context, model.Permalink,
                         model.ArticleId))
                     return Ok(
