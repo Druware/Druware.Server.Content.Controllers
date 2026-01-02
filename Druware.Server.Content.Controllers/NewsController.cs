@@ -200,11 +200,11 @@ namespace Druware.Server.Content.Controllers
         public async Task<ActionResult<Article>> Update(      
             [FromBody] Article model, string value)
         {
-            ActionResult? r = await UpdateUserAccess();
+            var r = await UpdateUserAccess();
             if (r != null) return r;
 
             // find the article
-            Article? article = Article.ByPermalinkOrId(_context, value);
+            var article = Article.ByPermalinkOrId(_context, value);
             if (article == null) return BadRequest("Not Found");
 
             // validate the model
@@ -243,6 +243,8 @@ namespace Druware.Server.Content.Controllers
                     return Ok(
                         Result.Error(
                             "Permalink cannot duplicate an existing link"));
+                
+                article.Permalink = model.Permalink;
             }
 
             // set and write the changes
@@ -254,8 +256,9 @@ namespace Druware.Server.Content.Controllers
             article.Modified = DateTime.Now;
             article.Pinned = model.Pinned;
             article.Expires = model.Expires;
-            article.Permalink = model.Permalink;
-
+            article.HeaderImageId = model.HeaderImageId;
+            article.IconId = model.IconId;
+            
             article.ArticleTags.Clear();
             if (model.Tags != null)
             { 

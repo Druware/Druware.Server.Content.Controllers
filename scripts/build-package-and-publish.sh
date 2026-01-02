@@ -5,11 +5,7 @@
 PKGNAME=`pwd`
 PKGNAME=`echo $PKGNAME | awk -F "/" '{print $NF}'`
 
-# Update the .nuspec
-
-# lookup the apikey ( if needed )
-APIKEY=`defaults read com.trustwin.nuget apikey`
-VERSION=`grep -o -p '<version>.*</version>' $PKGNAME.nuspec | sed -n -r "s/^.*<version>(.*)<\/version>.*$/\1/p"` 
+VERSION=`grep -o -p '<Version>.*</Version>' $PKGNAME.csproj | sed -n -r "s/^.*<Version>(.*)<\/Version>.*$/\1/p"` 
 
 # parse the number
 MAJOR=`echo $VERSION | awk '{split($0,a,"."); print a[1]}'`
@@ -32,10 +28,18 @@ else
 fi 
 VERSION=$MAJOR.$MINOR.$REVISION
 
-sed -r -i '' -e "s/^(.*)<version>(.*)<\/version>.*$/\1<version>$VERSION<\/version>/g" $PKGNAME.nuspec 
+sed -r -i '' -e "s/^(.*)<Version>(.*)<\/Version>.*$/\1<Version>$VERSION<\/Version>/g" $PKGNAME.csproj 
 
 # build and push
 
-dotnet build . --configuration RELEASE 
+dotnet build . --configuration Release 
 nuget pack -OutputDirectory pub -Properties Configuration=Release
-nuget push -Source https://nuget.satori-assoc.com/v3/index.json -ApiKey $APIKEY pub/$PKGNAME.$VERSION.nupkg
+
+## Nuget Push
+APIKEY=`defaults read org.nuget.api apikey`
+dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key $APIKEY pub/$PKGNAME.$VERSION.nupkg
+
+## Satori Push
+APIKEY=`defaults read com.trustwin.nuget apikey`
+dotnet nuget push --source https://nuget.satori-assoc.com/v3/index.json --api-key $APIKEY pub/$PKGNAME.$VERSION.nupkg
+

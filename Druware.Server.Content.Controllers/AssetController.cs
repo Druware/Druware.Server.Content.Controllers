@@ -198,7 +198,7 @@ namespace Druware.Server.Content.Controllers
                 string value, 
                [FromForm] int typeId, 
                [FromForm] string description,
-               [FromForm] IFormFile content, 
+               [FromForm] IFormFile? content, 
                [FromForm] string? mediaType, 
                [FromForm] string? fileName 
         )
@@ -215,17 +215,22 @@ namespace Druware.Server.Content.Controllers
             asset.MediaType = mediaType ?? content.ContentType;
             
             // now read the content to a byte[] into the asset.content value
-            var length = content.Length;
-            if (length < 0)
-                return BadRequest();
+            // being as this is an update, the content may not have been sent,
+            // this is just updating other fields, so empty content is not an 
+            // error
+            var length = content?.Length ?? 0;
+            if (length > 0)
+            {
 
-            await using var fileStream = content.OpenReadStream();
-            var bytes = new byte[length];
-            if (fileStream != null)
-                _ = await fileStream.ReadAsync(bytes.AsMemory(0, (int)content.Length));
-            asset.Content = bytes;
+                await using var fileStream = content.OpenReadStream();
+                var bytes = new byte[length];
+                if (fileStream != null)
+                    _ = await fileStream.ReadAsync(
+                        bytes.AsMemory(0, (int)content.Length));
+                asset.Content = bytes;
+            }
 
-            if (asset.FileName != value) 
+            if (asset.FileName != fileName) 
                 if (!Asset.IsFileNameAvailable(_context, asset.FileName!))
                     return Ok(Result.Error("FileName cannot duplicate an existing file"));
 

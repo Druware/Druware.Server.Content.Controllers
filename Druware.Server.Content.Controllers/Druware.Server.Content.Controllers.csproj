@@ -12,21 +12,30 @@
             more value.
         </Description>
         <PackageId>Druware.Server.Content.Controllers</PackageId>
-        <Version>1.0.1</Version>
+        <Version>1.1.6</Version>
         <Authors>Dru Satori</Authors>
         <Company>dru@druware.com</Company>
         <RepositoryUrl>https://github.com/Druware/Druware.Server.Content.Controllers</RepositoryUrl>
-        <Copyright>Copyright 2019-2024 by:
-            Andy 'Dru' Satori @ Satori &amp; Associates, Inc.
+        <Authors>Dru Satori</Authors>
+        <Company>dru@druware.com</Company>
+        <Copyright>Copyright 2019-2026 by:
+            Andy 'Dru' Satori @ Druware Software Designs.
             All Rights Reserved</Copyright>
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- PropertyGroup necessary references -->
+        <None Include="..\CHANGE.md" Pack="false" PackagePath="CHANGE.md"/>
+        <None Include="..\LICENSE.txt" Pack="true" PackagePath="LICENSE.txt"/>
+        <None Include="..\README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="AutoMapper" Version="12.0.0" />
-        <PackageReference Include="Druware.Extensions" Version="1.0.*" />
+        <PackageReference Include="Druware.Extensions" Version="1.1.*" />
         <PackageReference Include="Druware.Server" Version="1.1.*" />
-        <PackageReference Include="Druware.Server.Content" Version="1.1.5" />
-        <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.*" />
+        <PackageReference Include="Druware.Server.Content" Version="1.1.7" />
+        <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.*" />
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.*" />
         <PackageReference Include="Microsoft.AspNetCore.Server.IISIntegration" Version="2.2.*" />
