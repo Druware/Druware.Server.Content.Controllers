@@ -229,11 +229,11 @@ public class ProductController : CustomController
     public async Task<ActionResult<Product>> Update(
         [FromBody] Product model, string value)
     {
-        ActionResult? r = await UpdateUserAccess();
+        var r = await UpdateUserAccess();
         if (r != null) return r;
 
         // find the article
-        Product? obj = Product.ByShortOrId(_context, value);
+        var obj = Product.ByShortOrId(_context, value);
         if (obj == null) return BadRequest("Not Found");
 
         // validate the model
@@ -242,9 +242,9 @@ public class ProductController : CustomController
             var errors = ModelState.Select(x => x.Value.Errors)
                 .Where(y => y.Count > 0)
                 .ToList();
-            var message = "Invalid Model Recieved";
+            var message = "Invalid Model Received";
             foreach (var error in errors)
-                message += String.Format("\n\t{0}", error);
+                message += $"\n\t{error}";
             return Ok(Result.Error(message));
         }
 

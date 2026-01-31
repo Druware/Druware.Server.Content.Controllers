@@ -123,7 +123,7 @@ namespace Druware.Server.Content.Controllers
         public async Task<ActionResult<Article>> Add(
             [FromBody] Article model)
         {
-            ActionResult? r = await UpdateUserAccess();
+            var r = await UpdateUserAccess();
             if (r != null) return r;
 
             if (!ModelState.IsValid)
@@ -142,7 +142,7 @@ namespace Druware.Server.Content.Controllers
 
             // validate the permalink, a duplicate WILL fail the save
 
-            model.Permalink ??= model.Title
+            model.Permalink ??= model.Title.ToLower()
                 .Replace(" ", "_")
                 .Replace("!", "")
                 .Replace(",", "")
@@ -162,10 +162,11 @@ namespace Druware.Server.Content.Controllers
                 var user = await UserManager.GetUserAsync(HttpContext.User);
                 if (user == null) return BadRequest("No User Found");
                 model.AuthorId = new Guid(user.Id);
-                model.ByLine = user.LastName + ", " + user.FirstName;
+                model.ByLine ??= user.LastName + ", " + user.FirstName;
             }
-            model.Posted = DateTime.Now;
-            model.Modified = DateTime.Now;
+            
+            model.Posted ??= DateTime.Now;
+            model.Modified ??= DateTime.Now;
 
             // tags-
 
@@ -253,11 +254,21 @@ namespace Druware.Server.Content.Controllers
             article.Title = model.Title;
             article.Summary = model.Summary;
             article.Body = model.Body;
-            article.Modified = DateTime.Now;
+            if (model.Posted != null) article.Posted = model.Posted;
+            article.Modified ??= DateTime.Now;
+            if (model.Modified != null) article.Modified = model.Modified;
             article.Pinned = model.Pinned;
             article.Expires = model.Expires;
             article.HeaderImageId = model.HeaderImageId;
             article.IconId = model.IconId;
+            if (model.AuthorId == null)
+            {
+                var user = await UserManager.GetUserAsync(HttpContext.User);
+                if (user == null) return BadRequest("No User Found");
+                model.AuthorId = new Guid(user.Id);
+                model.ByLine ??= user.LastName + ", " + user.FirstName;
+            }
+            article.ByLine = model.ByLine;
             
             article.ArticleTags.Clear();
             if (model.Tags != null)

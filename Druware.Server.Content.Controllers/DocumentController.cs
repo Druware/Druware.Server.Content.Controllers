@@ -205,11 +205,11 @@ namespace Druware.Server.Content.Controllers
         public async Task<ActionResult<Document>> Update(      
             [FromBody] Document model, string value)
         {
-            ActionResult? r = await UpdateUserAccess();
+            var r = await UpdateUserAccess();
             if (r != null) return r;
 
             // find the article
-            Document? document = Document.ByPermalinkOrId(_context, value);
+            var document = Document.ByPermalinkOrId(_context, value);
             if (document == null) return BadRequest("Not Found");
 
             // validate the model
@@ -220,7 +220,7 @@ namespace Druware.Server.Content.Controllers
                        .ToList();
                 var message = "Invalid Model Recieved";
                 foreach (var error in errors)
-                    message += String.Format("\n\t{0}", error);
+                    message += $"\n\t{error}";
                 return Ok(Result.Error(message));
             }
 
@@ -231,22 +231,16 @@ namespace Druware.Server.Content.Controllers
 
             // validate the permalink, a duplicate WILL fail the save
 
-            if (model.Permalink == null)
-            {
-                // convert spaces to _
-                // strip puncutation
-                // urlencode the result
-                model.Permalink = model.Title!
-                    .Replace(" ", "_")
-                    .Replace("!", "")
-                    .Replace(",", "")
-                    .Replace("\"", "")
-                    .Replace("?", "")
-                    .Replace("=", "")
-                    .EncodeUrl();
-            }
+            model.Permalink ??= model.Title!
+                .Replace(" ", "_")
+                .Replace("!", "")
+                .Replace(",", "")
+                .Replace("\"", "")
+                .Replace("?", "")
+                .Replace("=", "")
+                .EncodeUrl();
 
-            if (!Article.IsPermalinkValid(_context, model.Permalink!, model.DocumentId))
+            if (!Document.IsPermalinkValid(_context, model.Permalink!, model.DocumentId))
                 return Ok(Result.Error("Permalink cannot duplicate an existing link"));
 
             // set and write the changes
@@ -262,21 +256,23 @@ namespace Druware.Server.Content.Controllers
             { 
                 foreach (string t in model.Tags)
                 {
-                    DocumentTag at = new();
-                    at.DocumentId = document.DocumentId;
-                    Tag tag = Tag.ByNameOrId(ServerContext, t);
+                    DocumentTag at = new()
+                    {
+                        DocumentId = document.DocumentId
+                    };
+                    var tag = Tag.ByNameOrId(ServerContext, t);
                     if (tag.TagId == null)
                         at.Tag = tag;
                     else
                         at.TagId = (long)tag.TagId!;
-
                     document.DocumentTags.Add(at);
                 }
             }
             await _context.SaveChangesAsync();
 
             // return the updated object
-            return Ok(Article.ByPermalinkOrId(_context, value));
+            var result = Document.ByPermalinkOrId(_context, value);
+            return Ok(result);
         }
 
         /// <summary>
