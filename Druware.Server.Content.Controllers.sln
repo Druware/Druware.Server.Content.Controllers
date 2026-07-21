@@ -8,6 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		CHANGE.md = ./CHANGE.md
 		README.md = ./README.md
 		LICENSE.txt = ./LICENSE.txt
+		publish.yml = ./.github/workflows/publish.yml
 		build-package-and-publish.sh = ./scripts/build-package-and-publish.sh
 		build-package-and-publish.ps1 = ./scripts/build-package-and-publish.ps1
 	EndProjectSection

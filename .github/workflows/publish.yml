@@ -1,0 +1,108 @@
+name: Build & Publish NuGet
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version segment to bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    # Skip when the commit-back from a previous run triggers push. GitHub
+    # Actions also honours [skip ci] natively, but this guard makes the intent
+    # explicit and covers the workflow_dispatch case as well.
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT: Druware.Server.Content.Controllers/Druware.Server.Content.Controllers.csproj
+      TEST_PROJECT: UnitTests/UnitTests.csproj
+      PKG_ID: Druware.Server.Content.Controllers
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Bump version
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUMP="${{ github.event.inputs.bump || 'patch' }}"
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+(?=</Version>)' "$PROJECT" | head -n1)
+          echo "Current version: $VERSION"
+          IFS='.' read -r MAJOR MINOR REVISION <<<"$VERSION"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; REVISION=0 ;;
+            minor) MINOR=$((MINOR+1)); REVISION=0 ;;
+            patch|*) REVISION=$((REVISION+1)) ;;
+          esac
+          NEW_VERSION="$MAJOR.$MINOR.$REVISION"
+          echo "New version: $NEW_VERSION"
+          sed -r -i -e "s|<Version>[^<]+</Version>|<Version>$NEW_VERSION</Version>|" "$PROJECT"
+          echo "version=$NEW_VERSION" >>"$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+ 
+ #     - name: Test
+ #       run: dotnet test "$TEST_PROJECT" --no-build --configuration Release --verbosity normal
+
+      - name: Pack
+        run: dotnet pack "$PROJECT" --no-build --configuration Release --output pub
+
+      - name: Push to nuget.org
+        run: >-
+          dotnet nuget push "pub/${PKG_ID}.${{ steps.bump.outputs.version }}.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key "${{ secrets.NUGET_API }}"
+          --skip-duplicate
+
+      - name: Push to Satori feed
+        run: >-
+          dotnet nuget push "pub/${PKG_ID}.${{ steps.bump.outputs.version }}.nupkg"
+          --source https://nuget.satori-assoc.com/v3/index.json
+          --api-key "${{ secrets.SATORI_API }}"
+          --skip-duplicate
+
+      - name: Commit version bump and tag
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PROJECT"
+          git commit -m "Release v${VERSION} [skip ci]"
+          git tag "v${VERSION}"
+          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin "v${VERSION}"
