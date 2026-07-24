@@ -18,7 +18,6 @@
  *    All Rights Reserved
  */
 
-using AutoMapper;
 using Druware.Server;
 using Druware.Server.Entities;
 using RESTfulFoundation.Server;
@@ -43,7 +42,6 @@ namespace Druware.Server.Content.Controllers;
 [Route("[controller]")]
 public class ProductController : CustomController
 {
-    private readonly IMapper _mapper;
     private readonly AppSettings _settings;
     private readonly ContentContext _context;
 
@@ -52,14 +50,12 @@ public class ProductController : CustomController
     /// base CustomController before moving forward.
     /// </summary>
     /// <param name="configuration"></param>
-    /// <param name="mapper"></param>
     /// <param name="userManager"></param>
     /// <param name="signInManager"></param>
     /// <param name="context"></param>
     /// <param name="serverContext"></param>
     public ProductController(
         IConfiguration configuration,
-        IMapper mapper,
         UserManager<User> userManager,
         SignInManager<User> signInManager,
         ContentContext context,
@@ -67,7 +63,6 @@ public class ProductController : CustomController
         : base(configuration, userManager, signInManager, serverContext)
     {
         _settings = new AppSettings(Configuration);
-        _mapper = mapper;
         _context = context;
     }
 

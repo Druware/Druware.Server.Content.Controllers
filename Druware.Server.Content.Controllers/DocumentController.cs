@@ -19,7 +19,6 @@
  */
 
 using System;
-using AutoMapper;
 using Druware.Extensions;
 using Druware.Server;
 using Druware.Server.Content;
@@ -46,7 +45,6 @@ namespace Druware.Server.Content.Controllers
     [Route("[controller]")]
     public class DocumentController : CustomController
     {
-        private readonly IMapper _mapper;
         private readonly AppSettings _settings;
         private readonly ContentContext _context;
 
@@ -55,14 +53,12 @@ namespace Druware.Server.Content.Controllers
         /// base CustomController before moving forward.
         /// </summary>
         /// <param name="configuration"></param>
-        /// <param name="mapper"></param>
         /// <param name="userManager"></param>
         /// <param name="signInManager"></param>
         /// <param name="context"></param>
         /// <param name="serverContext"></param>
         public DocumentController(
             IConfiguration configuration,
-            IMapper mapper,
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             ContentContext context,
@@ -70,7 +66,6 @@ namespace Druware.Server.Content.Controllers
             : base(configuration, userManager, signInManager, serverContext)
         {
             _settings = new AppSettings(Configuration);
-            _mapper = mapper;
             _context = context;
         }
 
