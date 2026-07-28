@@ -1,5 +1,30 @@
 # Change Log
 
+## 2026-07-28 - product meta tag support
+
+* `Druware.Server.Content` 1.1.16 adds `ProductMeta`, a `(property, value)`
+  child table on `Product`, surfaced as a `[NotMapped]
+  Dictionary<string, string> Meta` projection - the same idiom as the
+  existing `Tags`/`ProductTags` pair. `ProductController` wires it up inline
+  in `Add` and `Update`, mirroring how tags are already handled; there is
+  deliberately no separate `/meta` route family.
+* `Add` translates the posted `Meta` dictionary into `ProductMeta` rows,
+  skipping null or whitespace properties.
+* `Update` reconciles instead of clear-and-rebuild: `content.product_meta`
+  carries a unique index on `(product_id, property)`, so severing the whole
+  collection and re-adding risks violating it if EF batches the inserts
+  ahead of the deletes. Existing properties are updated in place, new ones
+  are added, and absent ones removed. A null `Meta` leaves existing meta
+  untouched; an empty `Meta` clears it - callers need to send the full set
+  they want kept, not just the properties that changed.
+* `Get` loads the `ProductMeta` collection explicitly, since
+  `Product.ByShortOrId` lives in the library and does not include it. This
+  also makes it correct where lazy-loading proxies are not enabled.
+* `GetList` now includes `ProductMeta` so `Meta` is populated in list
+  responses.
+* Also reorders product news by `Posted` instead of `Modified`, and product
+  history by `Posted` descending.
+
 ## 2026-07-24 - build fix and dependency advisories
 
 * Floated `Microsoft.AspNetCore.Identity` (was pinned at 2.3.1) and
