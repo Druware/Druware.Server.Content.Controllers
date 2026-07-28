@@ -30,6 +30,7 @@ using Druware.Server.Content.Entities;
 using System.Linq.Expressions;
 using Druware.Server.Content.Migrations.PostgreSql;
 using Product = Druware.Server.Content.Entities.Product;
+using ProductMeta = Druware.Server.Content.Entities.ProductMeta;
 
 namespace Druware.Server.Content.Controllers;
 
@@ -87,6 +88,7 @@ public class ProductController : CustomController
         var list = _context.Products?
             .OrderBy(a => a.Name)
             //.Include("Product.Tags")
+            .Include("ProductMeta")
             .TagWithSource("Getting Products")
             .Skip(page * count)
             .Take(count)
@@ -106,7 +108,12 @@ public class ProductController : CustomController
         await LogRequest();
 
         var r = Product.ByShortOrId(_context, value);
-        return (r != null) ? Ok(r) : BadRequest("Not Found");
+        if (r == null) return BadRequest("Not Found");
+
+        // ByShortOrId does not include the meta, so load it explicitly
+        _context.Entry(r).Collection(p => p.ProductMeta).Load();
+
+        return Ok(r);
     }
 
     private ListResult? _news = null;
@@ -137,7 +144,7 @@ public class ProductController : CustomController
             )
             .Include("ArticleTags")
             .TagWithSource($"Getting articles for tag {p.Short}")
-            .OrderByDescending(e => e.Modified)
+            .OrderByDescending(e => e.Posted)
             .Skip(page * count)
             .Take(count)
             .ToList();
@@ -194,6 +201,17 @@ public class ProductController : CustomController
                 else
                     at.TagId = (long)tag.TagId!;
                 model.ProductTags.Add(at);
+            }
+
+        if (model.Meta != null)
+            foreach (var m in model.Meta)
+            {
+                if (string.IsNullOrWhiteSpace(m.Key)) continue;
+
+                ProductMeta pm = new();
+                pm.Property = m.Key;
+                pm.Value = m.Value;
+                model.ProductMeta.Add(pm);
             }
 
         // update the model with some relevant elements.
@@ -281,6 +299,39 @@ public class ProductController : CustomController
             }
         }
 
+        var meta = model.Meta;
+        if (meta != null)
+        {
+            // ByShortOrId does not include the meta, so load it explicitly
+            _context.Entry(obj).Collection(p => p.ProductMeta).Load();
+
+            foreach (var m in meta)
+            {
+                if (string.IsNullOrWhiteSpace(m.Key)) continue;
+
+                var pm = obj.ProductMeta
+                    .FirstOrDefault(e => e.Property == m.Key);
+                if (pm == null)
+                {
+                    pm = new ProductMeta();
+                    pm.ProductId = (long)obj.ProductId!;
+                    obj.ProductMeta.Add(pm);
+                }
+
+                pm.Property = m.Key;
+                pm.Value = m.Value;
+            }
+
+            var removed = obj.ProductMeta
+                .Where(e => e.Property == null || !meta.ContainsKey(e.Property))
+                .ToList();
+            foreach (var pm in removed)
+            {
+                _context.ProductMeta?.Remove(pm);
+                obj.ProductMeta.Remove(pm);
+            }
+        }
+
         await _context.SaveChangesAsync();
 
         // return the updated object*/
@@ -327,7 +378,7 @@ public class ProductController : CustomController
 
         var r = Product.ByShortOrId(_context, value);
         var list = (r != null && r.History != null)
-            ? r.History.ToList()
+            ? r.History.OrderByDescending(h => h.Posted).ToList()
             : new List<ProductRelease>();
 
         return r is { History: not null }
