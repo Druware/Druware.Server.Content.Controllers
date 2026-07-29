@@ -261,13 +261,15 @@ public class ProductController : CustomController
             return Ok(Result.Error(message));
         }
 
-        // only handle this if the short has changed
-        if (obj.Short != model.Short)
-        {
-            if (!Product.IsShortAvailable(_context, model.Short!))
-                return Ok(
-                    Result.Error("Short cannot duplicate an existing short"));
-        }
+        // the short must be unique, but the product being updated is allowed
+        // to keep its own, so exclude it from the lookup by id rather than
+        // relying on the incoming short matching the stored one exactly
+        var duplicate = _context.Products?
+            .Any(p => p.Short == model.Short &&
+                      p.ProductId != obj.ProductId) ?? false;
+        if (duplicate)
+            return Ok(
+                Result.Error("Short cannot duplicate an existing short"));
 
         // set and write the changes
         // cannot use this because it maps the private values too.

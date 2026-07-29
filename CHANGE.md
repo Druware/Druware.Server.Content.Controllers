@@ -1,5 +1,25 @@
 # Change Log
 
+## 2026-07-28 - product update no longer collides with itself on short
+
+* `ProductController.Update` checked the short for duplicates with
+  `Product.IsShortAvailable`, which has no notion of the record being
+  edited - it simply asks whether *any* product owns that short, and the
+  product being updated always does. The only thing keeping it from
+  rejecting every save was the `obj.Short != model.Short` guard in front of
+  it, an ordinal string comparison. Anything that makes the submitted short
+  differ from the stored one without actually changing which product owns
+  it - a case or whitespace difference, a client that normalises the value,
+  a `Short` that fails to bind and arrives null - takes the guard's true
+  branch, the lookup then finds the product itself, and the update is
+  rejected as a duplicate of itself. A case- or trailing-space-insensitive
+  collation (the SQL Server default) does the same on a rename that differs
+  only in case.
+* Replaced both with a single self-excluding query - match on the short,
+  exclude the current `ProductId` - the same shape `NewsController` and
+  `DocumentController` get from `IsPermalinkValid(context, permalink, id)`.
+  A short held by a *different* product is still rejected.
+
 ## 2026-07-28 - product meta tag support
 
 * `Druware.Server.Content` 1.1.16 adds `ProductMeta`, a `(property, value)`
