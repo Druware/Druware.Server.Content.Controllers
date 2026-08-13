@@ -1,5 +1,28 @@
 # Change Log
 
+## 2026-08-13 - product update now persists app store and direct links
+
+* `Druware.Server.Content` 1.1.17 adds seven new nullable string columns to
+  `Product`: `AppStoreApple`, `AppStoreMs`, `AppStoreGoogle`, and
+  `AppStoreAmazon` for store listing links, and `DirectOsx`, `DirectWinArm`,
+  and `DirectWinX64` for direct download links per platform. The csproj
+  already floats `Druware.Server.Content` at `1.1.*`, so no reference change
+  was required.
+* `ProductController.Add` posts the model wholesale, so it already persisted
+  the new fields with no change.
+* `ProductController.Update` copies scalars onto the loaded entity
+  field-by-field instead - the only place in the repo that enumerates
+  `Product` scalars this way - so the seven new fields were unsettable
+  through the update endpoint. `obj` is the tracked entity returned by
+  `Product.ByShortOrId`, loaded from the database; any property never
+  assigned simply keeps its stored value, so a client posting these fields
+  had the values silently discarded. Existing stored values survived an
+  update untouched, but new ones could never land - only `Add` could set
+  them, at creation time. Added the matching `obj.X = model.X;`
+  assignments for all seven, after `IconUrl` and before `Updated`.
+* `Get` and `GetList` serialize the entity directly, so the new fields
+  surface with no change.
+
 ## 2026-07-28 - product update no longer collides with itself on short
 
 * `ProductController.Update` checked the short for duplicates with

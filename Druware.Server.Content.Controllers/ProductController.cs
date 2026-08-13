@@ -282,6 +282,13 @@ public class ProductController : CustomController
         obj.DocumentationUrl = model.DocumentationUrl;
         obj.DownloadUrl = model.DownloadUrl;
         obj.IconUrl = model.IconUrl;
+        obj.AppStoreApple = model.AppStoreApple;
+        obj.AppStoreMs = model.AppStoreMs;
+        obj.AppStoreGoogle = model.AppStoreGoogle;
+        obj.AppStoreAmazon = model.AppStoreAmazon;
+        obj.DirectOsx = model.DirectOsx;
+        obj.DirectWinArm = model.DirectWinArm;
+        obj.DirectWinX64 = model.DirectWinX64;
         obj.Updated = DateTime.Now;
 
         if (obj.ProductTags != null) obj.ProductTags.Clear();
