@@ -1,5 +1,49 @@
 # Change Log
 
+## 2026-08-31 - collection controller
+
+* `Druware.Server.Content` 1.2.1 adds a Collections layer - `Collection`, the
+  `CollectionProduct` join, a `CollectionSecurityRole` pair, and the two
+  matching `DbSet`s on `ContentContext`. `Collection` mirrors `Product`'s
+  idiom: a `[NotMapped] string[] Products` projection over the join, built
+  from each product's `Short`, readable and writable so membership can ride
+  along on the entity itself.
+* Added `CollectionController`, following `ProductController` throughout -
+  anonymous reads behind `LogRequest`, mutations behind `UpdateUserAccess`
+  and the `Collection` author/editor roles, the entity bound directly with
+  no DTO and no mapper.
+* `Get` cannot lean on `Collection.ByNameOrId` alone. That lookup only
+  eager loads `CollectionProducts.Product` on the id branch; matched by
+  name it returns the bare row, and the `Products` projection - which reads
+  the join, not the database - comes back empty. The join and the products
+  behind it are loaded explicitly before the entity is returned, the same
+  way `ProductController.Get` loads `ProductMeta`.
+* `Add` and `Update` resolve each submitted short through
+  `Product.ByShortOrId` and refuse the whole request with
+  `Unknown product: x` when one does not resolve. Unlike `Tag.ByNameOrId`,
+  which creates on miss, there is no sensible product to invent here, and
+  silently dropping the entry would report a success the caller did not
+  get. Repeats within the submitted array are dropped rather than left to
+  violate the unique index on `(collection_id, product_id)`.
+* `Update` copies only `Name` and `Description`. `CollectionId` is the key,
+  and `Created` and `Updated` are `DatabaseGenerated(Computed)`, so none of
+  the three may be assigned. Membership is replace on update - the existing
+  join is loaded, cleared, and rebuilt - and a null `Products` leaves it
+  alone entirely. The response is the entity that was saved rather than a
+  fresh lookup on the route value: addressed by name, a rename leaves that
+  value pointing at a name that no longer exists, and the endpoint would
+  answer a successful save with a null body.
+* `Remove` loads `CollectionProducts` before removing the collection. The
+  join's FK to `Collection` is `ClientCascade`, so EF deletes only the
+  dependents it is actually tracking; with a name lookup that set is empty
+  and the delete comes back as a foreign key violation. The products
+  themselves are never touched - the join is the dependent on that side
+  too.
+* Added `{value}/products` to page the membership, and
+  `{value}/products/{productValue}` as POST and DELETE to add and remove a
+  single product. The add reports `Already a member` on a repeat rather
+  than letting the unique index throw.
+
 ## 2026-08-13 - product update now persists app store and direct links
 
 * `Druware.Server.Content` 1.1.17 adds seven new nullable string columns to
