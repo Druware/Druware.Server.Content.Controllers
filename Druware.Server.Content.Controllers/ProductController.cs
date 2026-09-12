@@ -289,6 +289,10 @@ public class ProductController : CustomController
         obj.DirectOsx = model.DirectOsx;
         obj.DirectWinArm = model.DirectWinArm;
         obj.DirectWinX64 = model.DirectWinX64;
+        obj.DirectGnome = model.DirectGnome;
+        obj.DirectKde = model.DirectKde;
+        obj.DirectHaiku = model.DirectHaiku;
+        obj.RepoGithub = model.RepoGithub;
         obj.Updated = DateTime.Now;
 
         if (obj.ProductTags != null) obj.ProductTags.Clear();
