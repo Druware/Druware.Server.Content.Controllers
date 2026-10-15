@@ -275,6 +275,7 @@ namespace Druware.Server.Content.Controllers
             article.Modified ??= DateTime.Now;
             if (model.Modified != null) article.Modified = model.Modified;
             article.Pinned = model.Pinned;
+            article.IsFeatured = model.IsFeatured;
             article.Expires = model.Expires;
             article.HeaderImageId = model.HeaderImageId;
             article.IconId = model.IconId;

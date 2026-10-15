@@ -7,6 +7,8 @@
 * `Add` and `Update` check the takes and the meta with `Article.ValidateTakesAndMeta` and answer HTTP 400 with a plain message when they fail, so a client that only reads the status sees it. The existing validation paths (model state, duplicate permalink) still answer `Ok(Result.Error(...))` and are unchanged.
 * Takes are stored as `Article.NormalizeTake` leaves them: trimmed, with a blank take stored as null. `Update` copies both alongside the other fields, so a PUT that omits a take clears it.
 * Meta goes through `Article.ApplyMeta`. On `Add`, an object creates the rows and an omitted or null `meta` creates none. On `Update`, an omitted or null `meta` leaves the stored meta untouched, and an object replaces the whole set: missing keys are deleted and `{}` clears them all. Keys are trimmed, a null value is stored as an empty string, and keys starting with `$` (such as the `$id` that `ReferenceHandler.Preserve` writes into the dictionary) are dropped rather than refused.
+* `ProductController.Update` no longer deletes a product's meta when a PUT omits it. It read the body's meta through `Product.Meta`, which reads as an empty set rather than null on a body without `meta`, so every such PUT removed all of the product's meta rows. It now reads `Product.SubmittedMeta` (Druware.Server.Content 1.3.2): an omitted or null `meta` leaves the stored meta untouched, and an object still replaces the whole set, with `{}` clearing it. `Add` reads `SubmittedMeta` too, with no change in behaviour.
+* `NewsController.Update` now copies `IsFeatured`, so a PUT can feature or unfeature an article; before, it kept whatever was stored.
 
 ## 2026-10-15 - site setting controller
 

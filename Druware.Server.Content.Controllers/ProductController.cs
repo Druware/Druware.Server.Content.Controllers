@@ -203,8 +203,8 @@ public class ProductController : CustomController
                 model.ProductTags.Add(at);
             }
 
-        if (model.Meta != null)
-            foreach (var m in model.Meta)
+        if (model.SubmittedMeta != null)
+            foreach (var m in model.SubmittedMeta)
             {
                 if (string.IsNullOrWhiteSpace(m.Key)) continue;
 
@@ -312,7 +312,9 @@ public class ProductController : CustomController
             }
         }
 
-        var meta = model.Meta;
+        // an omitted or null meta leaves the stored meta alone; Meta itself
+        // never reads as null, so it cannot tell the two apart
+        var meta = model.SubmittedMeta;
         if (meta != null)
         {
             // ByShortOrId does not include the meta, so load it explicitly
