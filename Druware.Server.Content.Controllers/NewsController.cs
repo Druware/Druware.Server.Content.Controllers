@@ -89,6 +89,7 @@ namespace Druware.Server.Content.Controllers
             var list = _context.News?
                 .OrderByDescending(a => a.Modified)
                 .Include("ArticleTags.Tag")
+                .Include("ArticleMeta")
                 .Include("HeaderImage")
                 .TagWithSource("Getting articles")
                 .Skip(page * count)
@@ -136,6 +137,11 @@ namespace Druware.Server.Content.Controllers
                     message += $"\n\t{error}";
                 return Ok(Result.Error(message));
             }
+
+            // the takes and the meta answer a 400, so a client that reads
+            // only the status sees the failure
+            var invalid = Article.ValidateTakesAndMeta(model);
+            if (invalid != null) return BadRequest(invalid);
 
             if (_context.News == null)
                 return Ok(Result.Ok("No Data Available")); // think I want to alter this to not need the Ok()
@@ -185,6 +191,12 @@ namespace Druware.Server.Content.Controllers
                     model.ArticleTags.Add(at);
                 }
 
+            // takes and meta
+
+            model.EddieTake = Article.NormalizeTake(model.EddieTake);
+            model.DruTake = Article.NormalizeTake(model.DruTake);
+            Article.ApplyMeta(_context, model, model.SubmittedMeta);
+
             _context.News.Add(model);
             await _context.SaveChangesAsync();
             return Ok(model);
@@ -219,6 +231,11 @@ namespace Druware.Server.Content.Controllers
                     message += $"\n\t{error}";
                 return Ok(Result.Error(message));
             }
+
+            // the takes and the meta answer a 400, so a client that reads
+            // only the status sees the failure
+            var invalid = Article.ValidateTakesAndMeta(model);
+            if (invalid != null) return BadRequest(invalid);
 
             // validate the changes on the internal rules.
             // the Id cannot be changed.
@@ -261,6 +278,8 @@ namespace Druware.Server.Content.Controllers
             article.Expires = model.Expires;
             article.HeaderImageId = model.HeaderImageId;
             article.IconId = model.IconId;
+            article.EddieTake = Article.NormalizeTake(model.EddieTake);
+            article.DruTake = Article.NormalizeTake(model.DruTake);
             if (model.AuthorId == null)
             {
                 var user = await UserManager.GetUserAsync(HttpContext.User);
@@ -288,6 +307,11 @@ namespace Druware.Server.Content.Controllers
                     article.ArticleTags.Add(at);
                 }
             }
+
+            // a body without meta (omitted or null) leaves the rows alone;
+            // an object replaces them, and {} clears them
+            Article.ApplyMeta(_context, article, model.SubmittedMeta);
+
             await _context.SaveChangesAsync();
 
             // return the updated object

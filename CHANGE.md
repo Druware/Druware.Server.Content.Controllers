@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-10-15 - article takes and meta
+
+* Requires Druware.Server.Content 1.3.2, which adds `Article.EddieTake`, `Article.DruTake`, the `ArticleMeta` rows behind `Article.Meta`, and the static helpers used here. The `1.3.*` reference and the csproj version are unchanged; CI publishes this as the next patch.
+* `NewsController` carries `eddieTake`, `druTake` and `meta` on the list, on a single article and in POST and PUT bodies. The list now includes `ArticleMeta`, so `meta` is populated there too (the site's prerender daemon hashes the list records to spot edits); a single article gets it through `Article.ByPermalinkOrId`.
+* `Add` and `Update` check the takes and the meta with `Article.ValidateTakesAndMeta` and answer HTTP 400 with a plain message when they fail, so a client that only reads the status sees it. The existing validation paths (model state, duplicate permalink) still answer `Ok(Result.Error(...))` and are unchanged.
+* Takes are stored as `Article.NormalizeTake` leaves them: trimmed, with a blank take stored as null. `Update` copies both alongside the other fields, so a PUT that omits a take clears it.
+* Meta goes through `Article.ApplyMeta`. On `Add`, an object creates the rows and an omitted or null `meta` creates none. On `Update`, an omitted or null `meta` leaves the stored meta untouched, and an object replaces the whole set: missing keys are deleted and `{}` clears them all. Keys are trimmed, a null value is stored as an empty string, and keys starting with `$` (such as the `$id` that `ReferenceHandler.Preserve` writes into the dictionary) are dropped rather than refused.
+
 ## 2026-10-15 - site setting controller
 
 * Requires Druware.Server.Content 1.3.1, which adds `SiteSetting`, the
