@@ -1,5 +1,32 @@
 # Change Log
 
+## 2026-10-15 - site setting controller
+
+* Requires Druware.Server.Content 1.3.1, which adds `SiteSetting`, the
+  `SiteContentSecurityRole` pair and the matching `DbSet`s. The Content
+  reference moves from `1.2.*` to `1.3.*` and the version to 1.3.0,
+  published as 1.3.1, a minor move from the 1.2 line.
+* Added `SiteSettingController` at `api/sitesetting` and `sitesetting`,
+  following `CollectionController` - anonymous reads behind `LogRequest`,
+  mutations behind `UpdateUserAccess`, the entity bound directly with no
+  DTO and no mapper. Add and update take the `SiteContentSecurityRole`
+  author or editor role, delete takes the editor role, and a
+  `SystemAdministrator` may do all three. The list is ordered by key and
+  paged with `page` and `count`; a single setting is addressed by id or
+  key through `SiteSetting.ByKeyOrId`, and an unknown one answers
+  `Not Found` with a 400.
+* Validation failures answer HTTP 400 with a plain message rather than
+  `Ok(Result.Error(...))`, so a client that only reads the status sees
+  the failure. `Add` runs `SiteSetting.Validate` (key and description
+  rules) and refuses a key that already exists rather than leaving it to
+  the unique index. The id is always assigned by the database; any
+  `settingId` in the body is discarded.
+* `Update` copies only `Value` and `Description`. The key never changes,
+  so a different or even invalid key in the body is ignored rather than
+  validated, and only the description length is checked. `Updated` is
+  set in code on every add and update. The response is the entity that
+  was saved, not a fresh lookup.
+
 ## 2026-08-31 - collection controller
 
 * `Druware.Server.Content` 1.2.1 adds a Collections layer - `Collection`, the
