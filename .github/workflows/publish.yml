@@ -80,13 +80,6 @@ jobs:
       - name: Pack
         run: dotnet pack "$PROJECT" --no-build --configuration Release --output pub
 
-      - name: Push to nuget.org
-        run: >-
-          dotnet nuget push "pub/${PKG_ID}.${{ steps.bump.outputs.version }}.nupkg"
-          --source https://api.nuget.org/v3/index.json
-          --api-key "${{ secrets.NUGET_API }}"
-          --skip-duplicate
-
       - name: Push to Satori feed
         run: >-
           dotnet nuget push "pub/${PKG_ID}.${{ steps.bump.outputs.version }}.nupkg"

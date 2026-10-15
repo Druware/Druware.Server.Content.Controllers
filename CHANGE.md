@@ -26,6 +26,13 @@
   validated, and only the description length is checked. `Updated` is
   set in code on every add and update. The response is the entity that
   was saved, not a fresh lookup.
+* From this release the package is published to the Satori feed only,
+  `https://nuget.satori-assoc.com/v3/index.json`, and no longer to
+  nuget.org; the publish workflow's nuget.org push step is removed.
+  Consumers need that feed as a package source to restore 1.3.1 and
+  later. The repo now carries a `nuget.config` at its root that adds the
+  feed alongside nuget.org, so local and CI restores can find
+  Druware.Server.Content 1.3.x.
 
 ## 2026-08-31 - collection controller
 
