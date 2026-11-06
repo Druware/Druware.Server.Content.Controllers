@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-11-06 - product delete, disable and redirect
+
+* Requires Druware.Server.Content 1.5.1 or later, which adds `Product.IsDisabled`, `Product.RedirectTo`, `Product.RedirectShort` and their helpers, and cascades a product's delete to its tag rows, meta, releases and collection memberships. The Content reference moves from `1.4.*` to `1.5.*` and the version to 1.5.0, published as 1.5.1, a minor move from the 1.4 line.
+* `ProductController.Remove` now deletes a product that has tags, meta, releases or collection memberships; before, the database refused it and the request failed with an unhandled exception. A delete the database still refuses answers HTTP 400 with `Delete Failed:` and the database's reason, and one that changes nothing answers 400 `Delete Failed`, rather than an error page or `Delete Successful`.
+* Disabled products are visible only to a caller in the `ProductSecurityRole` author or editor role, or a `SystemAdministrator`, read from the signed-in principal with `User.IsInRole` as `ReviewController` does. Everyone else, signed in or not, does not get them in the list, and the total counts only the others; `Get`, `{value}/news` and `{value}/history` answer `Not Found` with a 400, as for a missing product. The exception is a disabled product with a redirect: `Get` still returns it to anyone, so old links can be sent on, while its news and history stay hidden.
+* `Get` fills `redirectShort` through `Product.ResolveRedirect`. A product with `redirectTo` set is returned as before, with `redirectTo` as stored and `redirectShort` holding the current short of the product it names, or null when `redirectTo` is a URL; the API never answers with an HTTP redirect, and the site issues the 301 from `redirectShort` when it is set and from `redirectTo` otherwise.
+* `Add` and `Update` accept `isDisabled` and `redirectTo`. The redirect is trimmed, a blank one is stored as null, and one that `Product.ValidateRedirectTo` refuses answers HTTP 400 with its message: it must be an absolute http or https URL or the short or id of another existing product. `Update` replaces both with the body's values, so a PUT that omits `isDisabled` enables the product and one that omits `redirectTo` clears it.
+
 ## 2026-10-15 - reviews
 
 * Requires Druware.Server.Content 1.4.1 or later, which adds `Review`, the `ReviewTag` rows behind `Review.Tags`, the `Reviews` DbSet and the static helpers used here. The Content reference moves from `1.3.*` to `1.4.*` and the version to 1.4.0, published as 1.4.1, a minor move from the 1.3 line.

@@ -67,6 +67,18 @@ public class ProductController : CustomController
         _context = context;
     }
 
+    // disabled products are visible only to the roles that may write
+    // products, read from the signed-in principal as ReviewController does;
+    // AuthorOrEditor is a comma-joined list, so each role is checked alone
+    private bool IncludeDisabled =>
+        User.IsInRole(ProductSecurityRole.Author) ||
+        User.IsInRole(ProductSecurityRole.Editor) ||
+        User.IsInRole(UserSecurityRole.SystemAdministrator);
+
+    // a disabled product reads as missing to everyone else
+    private bool IsHidden(Product product) =>
+        product.IsDisabled && !IncludeDisabled;
+
     /// <summary>
     /// Get a list of the documents, in descending modified date order,
     /// limisted to the paramters passed on the QueryString
@@ -84,8 +96,11 @@ public class ProductController : CustomController
         if (_context.Products == null)
             return Ok(Result.Ok("No Data Available"));
 
-        var total = _context.Products?.Count() ?? 0;
-        var list = _context.Products?
+        var query = IncludeDisabled
+            ? _context.Products
+            : _context.Products.Where(p => !p.IsDisabled);
+        var total = query.Count();
+        var list = query
             .OrderBy(a => a.Name)
             //.Include("Product.Tags")
             .Include("ProductMeta")
@@ -108,10 +123,14 @@ public class ProductController : CustomController
         await LogRequest();
 
         var r = Product.ByShortOrId(_context, value);
-        if (r == null) return BadRequest("Not Found");
+        // a disabled product that redirects is still returned, so old links
+        // can still be sent on to where it moved
+        if (r == null || (IsHidden(r) && r.RedirectTo == null))
+            return BadRequest("Not Found");
 
         // ByShortOrId does not include the meta, so load it explicitly
         _context.Entry(r).Collection(p => p.ProductMeta).Load();
+        Product.ResolveRedirect(_context, r);
 
         return Ok(r);
     }
@@ -127,7 +146,7 @@ public class ProductController : CustomController
 
         var p = Product.ByShortOrId(_context, value);
 
-        if (p?.Short == null) return BadRequest("Not Found");
+        if (p?.Short == null || IsHidden(p)) return BadRequest("Not Found");
         if (_news != null) return Ok(_news);
 
         var t = Tag.ByNameOrId(ServerContext, p.Short);
@@ -183,6 +202,10 @@ public class ProductController : CustomController
             return
                 Ok(Result.Ok(
                     "No Data Available")); // think I want to alter this to not need the Ok()
+
+        model.RedirectTo = Product.NormalizeRedirectTo(model.RedirectTo);
+        var problem = Product.ValidateRedirectTo(_context, model);
+        if (problem != null) return BadRequest(problem);
 
         // validate the permalink, a duplicate WILL fail the save
 
@@ -271,6 +294,10 @@ public class ProductController : CustomController
             return Ok(
                 Result.Error("Short cannot duplicate an existing short"));
 
+        model.RedirectTo = Product.NormalizeRedirectTo(model.RedirectTo);
+        var problem = Product.ValidateRedirectTo(_context, model, obj.ProductId);
+        if (problem != null) return BadRequest(problem);
+
         // set and write the changes
         // cannot use this because it maps the private values too.
         // Author and ByLine cannot be altered here
@@ -293,6 +320,8 @@ public class ProductController : CustomController
         obj.DirectKde = model.DirectKde;
         obj.DirectHaiku = model.DirectHaiku;
         obj.RepoGithub = model.RepoGithub;
+        obj.IsDisabled = model.IsDisabled;
+        obj.RedirectTo = model.RedirectTo;
         obj.Updated = DateTime.Now;
 
         if (obj.ProductTags != null) obj.ProductTags.Clear();
@@ -373,9 +402,17 @@ public class ProductController : CustomController
         if (obj == null) return BadRequest("Not Found");
 
         _context.Products?.Remove(obj);
-        await _context.SaveChangesAsync();
+        try
+        {
+            if (await _context.SaveChangesAsync() == 0)
+                return BadRequest("Delete Failed");
+        }
+        catch (DbUpdateException e)
+        {
+            return BadRequest(
+                $"Delete Failed: {e.InnerException?.Message ?? e.Message}");
+        }
 
-        // Should rework the save to return a success of fail on the delete
         return Ok(Result.Ok("Delete Successful"));
     }
 
@@ -392,6 +429,7 @@ public class ProductController : CustomController
         await LogRequest();
 
         var r = Product.ByShortOrId(_context, value);
+        if (r != null && IsHidden(r)) r = null;
         var list = (r != null && r.History != null)
             ? r.History.OrderByDescending(h => h.Posted).ToList()
             : new List<ProductRelease>();
